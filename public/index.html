@@ -1,0 +1,503 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Jira Hub — единый дашборд</title>
+<style>
+  :root{
+    --bg:#0b0e14; --bg2:#0f131b; --panel:#141a24; --panel2:#1a222f; --hover:#1f2937;
+    --border:#242e3d; --border2:#2f3b4d;
+    --text:#e7eef7; --muted:#8a97a8; --faint:#5b6675;
+    --accent:#4c8dff; --accent2:#6ea8ff;
+    --green:#3fb950; --amber:#d9a531; --red:#f0576b; --violet:#a371f7; --cyan:#39c5cf;
+    --radius:14px; --radius-sm:9px;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%}
+  body{font-family:"Inter",-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+    background:radial-gradient(1200px 600px at 100% -10%,#12203a22,transparent),var(--bg);
+    color:var(--text);font-size:14px;-webkit-font-smoothing:antialiased}
+  a{color:var(--accent2);text-decoration:none}
+  a:hover{text-decoration:underline}
+  button,select,input{font:inherit;color:var(--text)}
+  button{cursor:pointer}
+
+  /* Header */
+  header{display:flex;align-items:center;gap:18px;padding:12px clamp(14px,3vw,32px);
+    border-bottom:1px solid var(--border);position:sticky;top:0;z-index:20;flex-wrap:wrap;
+    background:rgba(11,14,20,.85);backdrop-filter:blur(10px)}
+  .brand{display:flex;align-items:center;gap:11px;min-width:0}
+  .logo{width:34px;height:34px;border-radius:10px;flex:none;
+    background:linear-gradient(135deg,var(--accent),var(--violet));display:grid;place-items:center;
+    font-weight:800;color:#fff;font-size:16px}
+  .brand h1{font-size:17px;margin:0;font-weight:700;letter-spacing:.2px}
+  .brand .sub{color:var(--muted);font-size:12px;margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .grow{flex:1 1 auto}
+  .actions{display:flex;gap:9px;align-items:center;flex-wrap:wrap}
+  .btn{display:inline-flex;align-items:center;gap:7px;padding:8px 13px;border-radius:10px;
+    background:var(--panel2);border:1px solid var(--border2);font-weight:550;transition:.15s}
+  .btn:hover{border-color:var(--accent);background:var(--hover)}
+  .btn.primary{background:linear-gradient(135deg,var(--accent),#3b7cf0);border-color:transparent;color:#fff}
+  .btn.primary:hover{filter:brightness(1.08)}
+  .btn[disabled]{opacity:.6;cursor:default}
+  .icon-btn{width:34px;height:34px;padding:0;justify-content:center;border-radius:10px;
+    background:var(--panel2);border:1px solid var(--border2)}
+  .icon-btn:hover{border-color:var(--accent)}
+
+  /* Help popover */
+  .help{position:relative}
+  .help-pop{position:absolute;right:0;top:44px;width:min(340px,86vw);background:var(--panel);
+    border:1px solid var(--border2);border-radius:12px;padding:14px 16px;box-shadow:0 18px 40px #0009;
+    display:none;z-index:30;font-size:13px;line-height:1.5}
+  .help-pop.open{display:block}
+  .help-pop b{color:var(--text)}
+  .help-pop p{margin:0 0 10px;color:var(--muted)}
+  .help-pop p:last-child{margin:0}
+
+  .wrap{padding:clamp(16px,2.4vw,26px) clamp(14px,3vw,32px);width:100%;margin:0}
+
+  /* Stat cards */
+  .stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px;margin-bottom:20px}
+  .stat{background:linear-gradient(180deg,var(--panel),var(--bg2));border:1px solid var(--border);
+    border-radius:var(--radius);padding:15px 17px;position:relative;overflow:hidden}
+  .stat .n{font-size:27px;font-weight:750;line-height:1}
+  .stat .l{color:var(--muted);font-size:12px;margin-top:6px}
+  .stat .dot{position:absolute;top:15px;right:15px;width:9px;height:9px;border-radius:50%}
+
+  /* Tabs */
+  .tabs{display:flex;gap:4px;margin-bottom:16px;overflow-x:auto;border-bottom:1px solid var(--border);padding-bottom:0}
+  .tab{padding:9px 15px;border:none;background:transparent;color:var(--muted);font-weight:600;
+    border-bottom:2px solid transparent;white-space:nowrap;border-radius:0}
+  .tab:hover{color:var(--text)}
+  .tab.active{color:var(--text);border-bottom-color:var(--accent)}
+
+  /* Filters */
+  .filters{display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap;align-items:center}
+  .field{display:flex;flex-direction:column;gap:3px}
+  .field label{font-size:10.5px;text-transform:uppercase;letter-spacing:.05em;color:var(--faint);padding-left:2px}
+  input[type=search],select{background:var(--panel2);border:1px solid var(--border2);border-radius:9px;
+    padding:8px 11px;color:var(--text);min-height:38px}
+  input[type=search]{min-width:min(280px,100%)}
+  input[type=search]:focus,select:focus{outline:none;border-color:var(--accent)}
+  select{cursor:pointer}
+  .filters .grow{min-width:0}
+  .chip-clear{align-self:flex-end}
+
+  /* Cards grid */
+  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,300px),1fr));gap:14px}
+  .proj{background:var(--panel);border:1px solid var(--border);border-radius:var(--radius);padding:16px;
+    cursor:pointer;transition:.15s}
+  .proj:hover{border-color:var(--border2);background:var(--panel2);transform:translateY(-1px)}
+  .proj-top{display:flex;justify-content:space-between;align-items:flex-start;gap:10px}
+  .proj h3{margin:0;font-size:15px;line-height:1.25}
+  .proj .key{color:var(--muted);font-size:12px;font-family:ui-monospace,monospace;margin-top:3px;display:flex;gap:6px;align-items:center}
+  .site-tag{background:var(--panel2);border:1px solid var(--border2);border-radius:20px;padding:1px 8px;font-size:10.5px;color:var(--muted)}
+  .bar{display:flex;height:8px;border-radius:6px;overflow:hidden;margin:14px 0 9px;background:#0c1119}
+  .bar i{display:block;height:100%}
+  .metarow{display:flex;justify-content:space-between;color:var(--muted);font-size:12px;margin-top:5px;gap:10px}
+  .metarow.legend span{display:inline-flex;align-items:center;gap:5px}
+  .sw{width:9px;height:9px;border-radius:2px;display:inline-block}
+
+  /* Table */
+  .tablewrap{overflow-x:auto;border:1px solid var(--border);border-radius:var(--radius);background:var(--panel)}
+  table{width:100%;border-collapse:collapse;min-width:720px}
+  th,td{text-align:left;padding:11px 13px;border-bottom:1px solid var(--border);vertical-align:top}
+  th{color:var(--muted);font-weight:600;font-size:11px;text-transform:uppercase;letter-spacing:.04em;
+    cursor:pointer;user-select:none;position:sticky;top:0;background:var(--panel2);z-index:1;white-space:nowrap}
+  tbody tr:last-child td{border-bottom:none}
+  tbody tr:hover td{background:var(--panel2)}
+  td.summary{max-width:520px}
+
+  .pill{display:inline-block;padding:2px 9px;border-radius:20px;font-size:11.5px;font-weight:600;white-space:nowrap}
+  .pill.new{background:#15294a;color:#7fb2ff}
+  .pill.indeterminate{background:#3a2f12;color:#e6b846}
+  .pill.done{background:#12321f;color:#5ed17a}
+  .pill.grey{background:#1c2431;color:#9aa7b8}
+
+  .avatar{width:28px;height:28px;border-radius:50%;background:var(--panel2);display:inline-flex;align-items:center;
+    justify-content:center;font-size:11px;font-weight:700;border:1px solid var(--border2);overflow:hidden;flex:none}
+  .avatar img{width:100%;height:100%;object-fit:cover}
+
+  .person{background:var(--panel);border:1px solid var(--border);border-radius:var(--radius);padding:15px 17px}
+  .person-head{display:flex;align-items:center;gap:11px}
+  .person-head .name{font-weight:650}
+  .people-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,360px),1fr));gap:14px}
+  details summary{cursor:pointer;color:var(--muted);font-size:12.5px;margin-top:11px;outline:none;list-style:none}
+  details summary::-webkit-details-marker{display:none}
+  details summary::before{content:"▸ ";color:var(--faint)}
+  details[open] summary::before{content:"▾ "}
+  ul.tasklist{margin:9px 0 0;padding-left:2px;list-style:none}
+  ul.tasklist li{padding:6px 0;border-top:1px solid var(--border);font-size:13px}
+
+  .muted{color:var(--muted)}
+  .empty{padding:70px 20px;text-align:center;color:var(--muted)}
+  .spinner{display:inline-block;width:14px;height:14px;border:2px solid #fff5;border-top-color:#fff;
+    border-radius:50%;animation:spin .7s linear infinite}
+  @keyframes spin{to{transform:rotate(360deg)}}
+
+  /* Overview */
+  .cols2{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,420px),1fr));gap:16px}
+  .card{background:var(--panel);border:1px solid var(--border);border-radius:var(--radius);padding:16px 18px}
+  .card h2{font-size:14px;margin:0 0 14px;font-weight:650}
+  .distrib{display:flex;height:14px;border-radius:8px;overflow:hidden;background:#0c1119;margin-bottom:10px}
+  .distrib i{display:block;height:100%}
+  .rank{display:flex;align-items:center;gap:11px;padding:8px 0;border-top:1px solid var(--border)}
+  .rank:first-of-type{border-top:none}
+  .rank .n{margin-left:auto;font-weight:650}
+
+  @media(max-width:600px){
+    .brand h1{font-size:16px}
+    th,td{padding:9px 10px}
+    .btn span.txt{display:none}
+    .btn{padding:8px 11px}
+  }
+</style>
+</head>
+<body>
+<header>
+  <div class="brand">
+    <div class="logo">J</div>
+    <div style="min-width:0">
+      <h1>Jira Hub</h1>
+      <div class="sub" id="subtitle">загрузка…</div>
+    </div>
+  </div>
+  <div class="grow"></div>
+  <div class="actions">
+    <button class="btn" id="refreshBtn" title="Перечитать уже загруженные данные из базы. Быстро, без обращения к Jira.">
+      <span>↻</span><span class="txt">Обновить</span>
+    </button>
+    <button class="btn primary" id="syncBtn" title="Заново выгрузить данные из Jira в базу (по одному сайту). Требует SYNC_SECRET. Медленнее.">
+      <span>⟳</span><span class="txt">Синхронизировать</span>
+    </button>
+    <div class="help">
+      <button class="icon-btn" id="helpBtn" title="Что делают кнопки?">?</button>
+      <div class="help-pop" id="helpPop">
+        <p><b>↻ Обновить</b> — перечитывает уже сохранённые данные из базы (Supabase). Быстро, к Jira не обращается. Используйте, чтобы подтянуть результат последней синхронизации.</p>
+        <p><b>⟳ Синхронизировать</b> — заново выгружает проекты, задачи и участников из Jira в базу, по одному сайту за раз. Медленнее, спрашивает <b>SYNC_SECRET</b>. Обычно идёт по расписанию; кнопка — для ручного запуска.</p>
+      </div>
+    </div>
+  </div>
+</header>
+
+<div class="wrap">
+  <div class="stats" id="stats"></div>
+
+  <div class="tabs" id="tabs">
+    <button class="tab active" data-tab="overview">Обзор</button>
+    <button class="tab" data-tab="projects">Проекты</button>
+    <button class="tab" data-tab="issues">Задачи</button>
+    <button class="tab" data-tab="people">Кто чем занят</button>
+    <button class="tab" data-tab="members">Участники</button>
+  </div>
+
+  <div class="filters" id="filters"></div>
+  <div id="view"><div class="empty">Загрузка данных…</div></div>
+</div>
+
+<script>
+let DATA=null, TAB="overview";
+let SORT={key:"updated",dir:-1};
+const F={q:"",site:"",project:"",status:"",assignee:"",type:"",priority:"",category:""};
+
+const $=s=>document.querySelector(s);
+const el=h=>{const d=document.createElement("div");d.innerHTML=h.trim();return d.firstChild;};
+const esc=s=>String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const initials=n=>(n||"?").split(" ").filter(Boolean).map(x=>x[0]).slice(0,2).join("").toUpperCase();
+const uniq=a=>[...new Set(a.filter(Boolean))].sort((x,y)=>String(x).localeCompare(String(y)));
+const projById=id=>DATA.projects.find(p=>p.id===id);
+const catColor={new:"var(--accent)",indeterminate:"var(--amber)",done:"var(--green)"};
+
+async function load(){
+  $("#view").innerHTML='<div class="empty">Загрузка данных…</div>';
+  try{
+    const r=await fetch("/api/data");DATA=await r.json();
+    if(!DATA.ok)throw new Error(DATA.error||"ошибка");
+    hydrate();
+  }catch(e){
+    $("#view").innerHTML='<div class="empty">Ошибка: '+esc(e.message)+'<br><br>Проверьте настройку Supabase и запустите синхронизацию.</div>';
+  }
+}
+
+function hydrate(){
+  const t=DATA.totals;
+  const sync=DATA.last_sync?new Date(DATA.last_sync.finished_at).toLocaleString("ru-RU"):"ещё не было";
+  $("#subtitle").textContent=`${t.sites} сайт(ов) · ${t.projects} проектов · синхронизация: ${sync}`;
+
+  const active=DATA.workload.reduce((s,w)=>s+w.in_progress,0);
+  $("#stats").innerHTML="";
+  [["Проекты",t.projects,"var(--accent)"],["Задачи",t.issues,"var(--violet)"],
+   ["Участники",t.members,"var(--cyan)"],["В работе",active,"var(--amber)"],
+   ["Без исполнителя",t.unassigned,"var(--red)"]]
+   .forEach(([l,n,c])=>$("#stats").append(el(
+     `<div class="stat"><span class="dot" style="background:${c}"></span><div class="n">${n}</div><div class="l">${l}</div></div>`)));
+
+  renderFilters();render();
+}
+
+/* ---------- Filters ---------- */
+function opt(v,label,sel){return `<option value="${esc(v)}"${sel?" selected":""}>${esc(label)}</option>`;}
+function selectField(id,label,options){
+  return `<div class="field"><label>${label}</label><select data-f="${id}">${options}</select></div>`;
+}
+function renderFilters(){
+  const box=$("#filters");box.innerHTML="";
+  if(TAB==="overview"){box.style.display="none";return;}
+  box.style.display="flex";
+
+  const sitesOpt=opt("","Все сайты",!F.site)+DATA.sites.map(s=>opt(s.id,s.name||s.id,F.site===s.id)).join("");
+  const projList=DATA.projects.filter(p=>!F.site||p.site_id===F.site);
+  const projOpt=opt("","Все проекты",!F.project)+projList.map(p=>opt(p.id,`${p.key} — ${p.name}`,F.project===p.id)).join("");
+
+  let html=`<div class="field grow"><label>Поиск</label><input type="search" data-f="q" value="${esc(F.q)}" placeholder="Поиск по названию, ключу, имени…"></div>`;
+  html+=selectField("site","Сайт",sitesOpt);
+
+  if(TAB!=="members") html+=selectField("project","Проект",projOpt);
+
+  if(TAB==="projects"){
+    const cats=uniq(DATA.projects.map(p=>p.category));
+    if(cats.length) html+=selectField("category","Категория",opt("","Все категории",!F.category)+cats.map(c=>opt(c,c,F.category===c)).join(""));
+  }
+  if(TAB==="issues"){
+    html+=selectField("status","Статус",opt("","Любой статус",!F.status)
+      +opt("new","К работе",F.status==="new")+opt("indeterminate","В работе",F.status==="indeterminate")+opt("done","Готово",F.status==="done"));
+    const asg=uniq(DATA.issues.map(i=>i.assignee_name));
+    html+=selectField("assignee","Исполнитель",opt("","Все исполнители",!F.assignee)
+      +opt("__none__","Без исполнителя",F.assignee==="__none__")+asg.map(a=>opt(a,a,F.assignee===a)).join(""));
+    const types=uniq(DATA.issues.map(i=>i.issue_type));
+    html+=selectField("type","Тип",opt("","Все типы",!F.type)+types.map(x=>opt(x,x,F.type===x)).join(""));
+    const prios=uniq(DATA.issues.map(i=>i.priority));
+    if(prios.length) html+=selectField("priority","Приоритет",opt("","Любой",!F.priority)+prios.map(x=>opt(x,x,F.priority===x)).join(""));
+    html+=`<div class="field chip-clear"><label>&nbsp;</label><button class="btn" id="csvBtn" title="Экспорт отфильтрованных задач в CSV">⬇ CSV</button></div>`;
+  }
+  html+=`<div class="field chip-clear"><label>&nbsp;</label><button class="btn" id="clearBtn">Сброс</button></div>`;
+  box.innerHTML=html;
+
+  box.querySelectorAll("[data-f]").forEach(node=>{
+    const k=node.dataset.f;
+    const ev=node.tagName==="INPUT"?"input":"change";
+    node.addEventListener(ev,()=>{F[k]=node.value;if(k==="site")F.project="";renderFilters();render();});
+  });
+  const clr=$("#clearBtn");if(clr)clr.onclick=()=>{Object.keys(F).forEach(k=>F[k]="");renderFilters();render();};
+  const csv=$("#csvBtn");if(csv)csv.onclick=exportCSV;
+}
+
+/* ---------- Render ---------- */
+function render(){
+  const v=$("#view");v.innerHTML="";
+  if(TAB==="overview")return renderOverview(v);
+  if(TAB==="projects")return renderProjects(v);
+  if(TAB==="issues")return renderIssues(v);
+  if(TAB==="people")return renderPeople(v);
+  if(TAB==="members")return renderMembers(v);
+}
+
+function renderOverview(v){
+  // per-site breakdown
+  const bySite={};
+  DATA.projects.forEach(p=>{(bySite[p.site_id] ||= {projects:0,issues:0,done:0,members:new Set()});
+    bySite[p.site_id].projects++;bySite[p.site_id].issues+=p.counts.total;bySite[p.site_id].done+=p.counts.done;
+    p.member_ids.forEach(m=>bySite[p.site_id].members.add(m));});
+  const siteRows=DATA.sites.map(s=>{const b=bySite[s.id]||{projects:0,issues:0,done:0,members:new Set()};
+    const pct=b.issues?Math.round(b.done/b.issues*100):0;
+    return `<tr><td><a href="${esc(s.base_url)}" target="_blank">${esc(s.name||s.id)}</a></td>
+      <td>${b.projects}</td><td>${b.issues}</td><td>${b.members.size}</td>
+      <td><div class="bar" style="margin:0;width:120px"><i style="width:${pct}%;background:var(--green)"></i></div><span class="muted">${pct}%</span></td></tr>`;}).join("");
+
+  // overall status distribution
+  let todo=0,prog=0,done=0;DATA.issues.forEach(i=>{if(i.status_category==="new")todo++;else if(i.status_category==="indeterminate")prog++;else if(i.status_category==="done")done++;});
+  const tot=Math.max(todo+prog+done,1);
+
+  const top=DATA.workload.slice(0,7).map(w=>`<div class="rank">
+    <div class="avatar">${w.avatar_url?`<img src="${esc(w.avatar_url)}">`:initials(w.name)}</div>
+    <div><div>${esc(w.name)}</div><div class="muted" style="font-size:12px">${w.in_progress} в работе</div></div>
+    <div class="n">${w.total}</div></div>`).join("")||'<div class="muted">Нет активных задач</div>';
+
+  const errNote=(DATA.last_sync&&DATA.last_sync.ok===false)?
+    `<div class="card" style="border-color:#5a2b34"><h2 style="color:var(--red)">⚠ Последняя синхронизация с ошибками</h2><div class="muted">Часть сайтов могла не загрузиться. Нажмите «Синхронизировать» и проверьте сообщение.</div></div>`:"";
+
+  v.append(el(`<div class="cols2">
+    <div class="card">
+      <h2>Задачи по статусам</h2>
+      <div class="distrib">
+        <i style="width:${todo/tot*100}%;background:var(--accent)"></i>
+        <i style="width:${prog/tot*100}%;background:var(--amber)"></i>
+        <i style="width:${done/tot*100}%;background:var(--green)"></i>
+      </div>
+      <div class="metarow legend">
+        <span><i class="sw" style="background:var(--accent)"></i> К работе: ${todo}</span>
+        <span><i class="sw" style="background:var(--amber)"></i> В работе: ${prog}</span>
+        <span><i class="sw" style="background:var(--green)"></i> Готово: ${done}</span>
+      </div>
+    </div>
+    <div class="card"><h2>Кто больше всего загружен</h2>${top}</div>
+  </div>`));
+  v.append(el(`<div style="height:16px"></div>`));
+  if(errNote){v.append(el(errNote));v.append(el(`<div style="height:16px"></div>`));}
+  v.append(el(`<div class="card"><h2>Сайты</h2>
+    <div class="tablewrap" style="border:none">
+    <table style="min-width:520px"><thead><tr><th>Сайт</th><th>Проекты</th><th>Задачи</th><th>Участники</th><th>Готово</th></tr></thead>
+    <tbody>${siteRows||'<tr><td colspan=5 class=muted>Нет данных</td></tr>'}</tbody></table></div></div>`));
+}
+
+function matchQ(str){return !F.q||String(str).toLowerCase().includes(F.q.toLowerCase());}
+
+function renderProjects(v){
+  let list=DATA.projects.filter(p=>(!F.site||p.site_id===F.site)&&(!F.project||p.id===F.project)&&(!F.category||p.category===F.category));
+  if(F.q)list=list.filter(p=>matchQ(p.name+" "+p.key));
+  if(!list.length){v.append(el('<div class="empty">Проектов не найдено</div>'));return;}
+  const g=el('<div class="grid"></div>');
+  list.forEach(p=>{const c=p.counts,tot=Math.max(c.total,1);
+    const card=el(`<div class="proj">
+      <div class="proj-top">
+        <div><h3>${esc(p.name)}</h3><div class="key">${esc(p.key)} <span class="site-tag">${esc(p.site_id)}</span></div></div>
+        <div class="pill grey">${c.total}</div>
+      </div>
+      <div class="bar">
+        <i style="width:${c.todo/tot*100}%;background:var(--accent)"></i>
+        <i style="width:${c.in_progress/tot*100}%;background:var(--amber)"></i>
+        <i style="width:${c.done/tot*100}%;background:var(--green)"></i>
+      </div>
+      <div class="metarow"><span>${c.todo} к работе · ${c.in_progress} в работе · ${c.done} готово</span></div>
+      <div class="metarow"><span>👤 ${p.lead?esc(p.lead):"—"}</span><span>${c.members} участн.</span></div>
+    </div>`);
+    card.addEventListener("click",()=>{F.project=p.id;F.site=p.site_id;TAB="issues";syncTabUI();renderFilters();render();});
+    g.append(card);
+  });
+  v.append(g);
+}
+
+function filteredIssues(){
+  return DATA.issues.filter(i=>{
+    const p=projById(i.project_id);
+    if(F.site&&!(p&&p.site_id===F.site))return false;
+    if(F.project&&i.project_id!==F.project)return false;
+    if(F.status&&i.status_category!==F.status)return false;
+    if(F.type&&i.issue_type!==F.type)return false;
+    if(F.priority&&i.priority!==F.priority)return false;
+    if(F.assignee==="__none__"&&i.assignee_account_id)return false;
+    if(F.assignee&&F.assignee!=="__none__"&&i.assignee_name!==F.assignee)return false;
+    if(F.q&&!matchQ(i.summary+" "+i.issue_key+" "+(i.assignee_name||"")))return false;
+    return true;
+  });
+}
+function cmp(k,d){return (a,b)=>{let x=a[k]??"",y=b[k]??"";return(x>y?1:x<y?-1:0)*d;};}
+function th(k,l){const a=SORT.key===k?(SORT.dir<0?" ↓":" ↑"):"";return `<th data-sort="${k}">${l}${a}</th>`;}
+
+function renderIssues(v){
+  let list=filteredIssues();list.sort(cmp(SORT.key,SORT.dir));
+  const shown=list.slice(0,800);
+  const rows=shown.map(i=>{const p=projById(i.project_id);return `<tr>
+    <td><a href="${esc(i.url)}" target="_blank">${esc(i.issue_key)}</a></td>
+    <td class="summary">${esc(i.summary)}</td>
+    <td><span class="pill ${i.status_category||'grey'}">${esc(i.status||'—')}</span></td>
+    <td>${esc(i.issue_type||'')}</td>
+    <td>${esc(i.priority||'')}</td>
+    <td>${i.assignee_name?esc(i.assignee_name):'<span class=muted>—</span>'}</td>
+    <td class="muted">${p?esc(p.key):''} <span class="site-tag">${esc(i.site_id)}</span></td>
+    <td class="muted">${i.updated?new Date(i.updated).toLocaleDateString("ru-RU"):''}</td>
+  </tr>`;}).join("");
+  v.append(el(`<div class="tablewrap"><table><thead><tr>
+    ${th("issue_key","Ключ")}${th("summary","Задача")}${th("status","Статус")}${th("issue_type","Тип")}
+    ${th("priority","Приоритет")}${th("assignee_name","Исполнитель")}${th("project_id","Проект")}${th("updated","Обновлено")}
+  </tr></thead><tbody>${rows||'<tr><td colspan=8 class=muted style="padding:40px;text-align:center">Задач не найдено</td></tr>'}</tbody></table></div>`));
+  v.append(el(`<div class="muted" style="padding:10px 2px">Найдено ${list.length}${list.length>800?" (показаны первые 800)":""}</div>`));
+  v.querySelectorAll("th[data-sort]").forEach(h=>h.onclick=()=>{const k=h.dataset.sort;SORT.dir=SORT.key===k?-SORT.dir:1;SORT.key=k;render();});
+}
+
+function renderPeople(v){
+  let list=DATA.workload.map(w=>{
+    let issues=w.issues.filter(it=>{const p=projById(it.project_id);
+      return(!F.site||(p&&p.site_id===F.site))&&(!F.project||it.project_id===F.project);});
+    return{...w,issues,total:issues.length};
+  }).filter(w=>w.total>0);
+  if(F.q)list=list.filter(w=>matchQ(w.name));
+  list.sort((a,b)=>b.total-a.total);
+  if(!list.length){v.append(el('<div class="empty">Нет активных задач по фильтру</div>'));return;}
+  const g=el('<div class="people-grid"></div>');
+  list.forEach(w=>{
+    const inprog=w.issues.filter(x=>/progress|работ|process/i.test(x.status||"")).length;
+    const tasks=w.issues.map(it=>{const p=projById(it.project_id);return `<li><a href="${esc(it.url)}" target="_blank">${esc(it.key)}</a> ${esc(it.summary)} <span class="muted">— ${esc(it.status)}${p?` · ${esc(p.key)}`:''}</span></li>`;}).join("");
+    g.append(el(`<div class="person">
+      <div class="person-head">
+        <div class="avatar">${w.avatar_url?`<img src="${esc(w.avatar_url)}">`:initials(w.name)}</div>
+        <div class="name">${esc(w.name)}</div><div class="grow"></div>
+        <span class="pill indeterminate">${inprog} в работе</span><span class="pill grey">${w.total} всего</span>
+      </div>
+      <details><summary>Задачи (${w.issues.length})</summary><ul class="tasklist">${tasks}</ul></details>
+    </div>`));
+  });
+  v.append(g);
+}
+
+function renderMembers(v){
+  const projByMember={};DATA.projects.forEach(p=>p.member_ids.forEach(id=>(projByMember[id]||=[]).push({key:p.key,site:p.site_id})));
+  let list=DATA.members.slice();
+  if(F.site)list=list.filter(m=>(projByMember[m.account_id]||[]).some(x=>x.site===F.site));
+  if(F.q)list=list.filter(m=>matchQ((m.display_name||"")+" "+(m.email||"")));
+  list.sort((a,b)=>(a.display_name||"").localeCompare(b.display_name||""));
+  const wl=Object.fromEntries(DATA.workload.map(w=>[w.account_id,w.total]));
+  const rows=list.map(m=>{const pr=(projByMember[m.account_id]||[]).filter(x=>!F.site||x.site===F.site);
+    return `<tr>
+    <td><div style="display:flex;align-items:center;gap:9px"><div class="avatar">${m.avatar_url?`<img src="${esc(m.avatar_url)}">`:initials(m.display_name)}</div>${esc(m.display_name||'—')}</div></td>
+    <td class="muted">${esc(m.email||'')}</td>
+    <td>${pr.map(x=>`<span class="pill grey" style="margin:1px">${esc(x.key)}</span>`).join(" ")||'<span class=muted>—</span>'}</td>
+    <td>${wl[m.account_id]||0}</td></tr>`;}).join("");
+  v.append(el(`<div class="tablewrap"><table style="min-width:640px"><thead><tr>
+    <th>Участник</th><th>Email</th><th>Проекты</th><th>Активных задач</th></tr></thead>
+    <tbody>${rows||'<tr><td colspan=4 class=muted style="padding:40px;text-align:center">Нет данных</td></tr>'}</tbody></table></div>`));
+}
+
+/* ---------- CSV ---------- */
+function exportCSV(){
+  const rows=filteredIssues();
+  const cols=[["issue_key","Ключ"],["summary","Задача"],["status","Статус"],["issue_type","Тип"],
+    ["priority","Приоритет"],["assignee_name","Исполнитель"],["site_id","Сайт"],["updated","Обновлено"],["url","Ссылка"]];
+  const head=cols.map(c=>c[1]).join(";");
+  const body=rows.map(r=>cols.map(c=>`"${String(r[c[0]]??"").replace(/"/g,'""')}"`).join(";")).join("\n");
+  const blob=new Blob(["﻿"+head+"\n"+body],{type:"text/csv;charset=utf-8"});
+  const a=document.createElement("a");a.href=URL.createObjectURL(blob);
+  a.download=`jira-issues-${new Date().toISOString().slice(0,10)}.csv`;a.click();
+}
+
+/* ---------- Tabs ---------- */
+function syncTabUI(){document.querySelectorAll(".tab").forEach(t=>t.classList.toggle("active",t.dataset.tab===TAB));}
+document.querySelectorAll(".tab").forEach(t=>t.addEventListener("click",()=>{TAB=t.dataset.tab;syncTabUI();renderFilters();render();}));
+
+/* ---------- Buttons ---------- */
+$("#refreshBtn").onclick=load;
+$("#helpBtn").onclick=e=>{e.stopPropagation();$("#helpPop").classList.toggle("open");};
+document.addEventListener("click",e=>{if(!e.target.closest(".help"))$("#helpPop").classList.remove("open");});
+
+$("#syncBtn").onclick=async()=>{
+  const secret=prompt("Введите SYNC_SECRET для запуска синхронизации:");
+  if(!secret)return;
+  const btn=$("#syncBtn"),orig=btn.innerHTML;btn.disabled=true;
+  const sites=(DATA&&DATA.configured_sites&&DATA.configured_sites.length)?DATA.configured_sites:(DATA?DATA.sites.map(s=>s.id):[]);
+  const synced=[],errors=[];
+  try{
+    const run=async url=>{const r=await fetch(url);const j=await r.json();
+      if(j.error==="unauthorized")throw new Error("Неверный SYNC_SECRET");
+      (j.synced||[]).forEach(x=>synced.push(x));(j.errors||[]).forEach(x=>errors.push(x));};
+    if(sites.length){
+      for(let i=0;i<sites.length;i++){
+        btn.innerHTML=`<span class="spinner"></span> ${i+1}/${sites.length} ${esc(sites[i])}`;
+        await run(`/api/sync?site=${encodeURIComponent(sites[i])}&secret=${encodeURIComponent(secret)}`);
+      }
+    }else{
+      btn.innerHTML='<span class="spinner"></span> синхронизация';
+      await run(`/api/sync?secret=${encodeURIComponent(secret)}`);
+    }
+    const okL=synced.map(s=>`✓ ${s.site}: ${s.projects} проектов, ${s.issues} задач`).join("\n");
+    const erL=errors.length?"\n\nОшибки:\n"+errors.map(e=>`✗ ${e.site}: ${e.error}`).join("\n"):"";
+    alert("Синхронизация завершена:\n"+(okL||"(нет данных)")+erL);
+    await load();
+  }catch(e){alert("Ошибка синхронизации: "+e.message);}
+  finally{btn.disabled=false;btn.innerHTML=orig;}
+};
+
+load();
+</script>
+</body>
+</html>

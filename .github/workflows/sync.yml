@@ -1,0 +1,25 @@
+name: Jira sync
+# Планировщик синхронизации Jira -> Supabase.
+# Синхронизирует ПО ОДНОМУ САЙТУ за вызов (обход лимита подзапросов Cloudflare).
+# Настройте секреты репозитория (Settings -> Secrets -> Actions):
+#   BASE_URL    = https://jira-hub.itsikramovs.workers.dev
+#   SYNC_SECRET = ваш SYNC_SECRET
+on:
+  schedule:
+    - cron: "*/30 * * * *"
+  workflow_dispatch: {}
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Sync each site
+        run: |
+          BASE="${{ secrets.BASE_URL }}"
+          SEC="${{ secrets.SYNC_SECRET }}"
+          sites=$(curl -fsS "$BASE/api/data" | python3 -c "import sys,json;print(' '.join(json.load(sys.stdin).get('configured_sites',[])))")
+          echo "Sites: $sites"
+          for s in $sites; do
+            echo "--- sync $s ---"
+            curl -fsS "$BASE/api/sync?site=$s&secret=$SEC" | head -c 600; echo
+          done

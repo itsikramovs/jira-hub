@@ -1,0 +1,21 @@
+# Cloudflare WORKER со статическими ассетами (git-деплой через `npx wrangler deploy`).
+#
+# ВАЖНО про переменные: при git-деплое `wrangler deploy` СТИРАЕТ обычные
+# (Text) переменные, которых нет здесь, в [vars]. Секреты (Secret) сохраняются.
+# Поэтому несекретные переменные держим прямо тут, а keep_vars не даёт
+# удалять секреты/прочее, заданное в дашборде.
+name = "jira-hub"
+main = "worker.js"
+compatibility_date = "2024-11-01"
+keep_vars = true
+
+[assets]
+directory = "./public"
+binding = "ASSETS"
+
+# --- Несекретные переменные приложения (значения не являются секретами) ---
+[vars]
+SUPABASE_URL = "https://qotudiumlwnlcdncieca.supabase.co"
+JIRA_EMAIL = "itsikramovs@yandex.ru"
+JIRA_SITES = "sovgaber, glotr, togora, taxla, survin"
+GEMINI_MODEL = "gemini-3.6-flash"
